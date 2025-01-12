@@ -1,13 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Test.Main where
 
 import Test.Hspec
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import qualified Data.Map.Strict as Map
 import qualified Text.XML as XML
+import Text.XML.Cursor
 import Database.SQLite.Simple
-import System.Directory (removeFile)
+import System.Directory (removeFile, doesFileExist)
 import Control.Exception (bracket)
+import Control.Monad ((>=>))
 import qualified Database as DB
 import XmlParser
 import XmlTypes
@@ -19,21 +21,19 @@ setupTestDb = do
     execute_ conn "CREATE TABLE olcparam (xml_name TEXT, m_e TEXT)"
     execute_ conn "CREATE TABLE test_table (xml_param_name TEXT, xml_value TEXT, eplan_value TEXT)"
     
-    -- Insert test mechanical and electrical parameters
     execute conn "INSERT INTO olcparam (xml_name, m_e) VALUES (?, ?)" 
            ("ETOCONVPS_01" :: T.Text, "m" :: T.Text)
     execute conn "INSERT INTO olcparam (xml_name, m_e) VALUES (?, ?)" 
            ("ETOPRDH_01" :: T.Text, "e" :: T.Text)
     
-    -- Insert test mappings
     execute conn "INSERT INTO test_table (xml_param_name, xml_value, eplan_value) VALUES (?, ?, ?)"
            ("ETOPRDH_01" :: T.Text, "5" :: T.Text, "Low product height" :: T.Text)
     
     return conn
 
 -- Sample XML content for testing
-sampleXml :: T.Text
-sampleXml = T.unlines
+sampleXml :: TL.Text
+sampleXml = TL.fromStrict $ T.unlines
     [ "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
     , "<ILOGICEPLAN>"
     , "  <ETOCONVPS_01>PS_Value</ETOCONVPS_01>"
@@ -43,6 +43,13 @@ sampleXml = T.unlines
     , "  <ETOSPID_01>Order1</ETOSPID_01>"
     , "</ILOGICEPLAN>"
     ]
+
+-- Helper function to parse XML safely
+parseTestXml :: TL.Text -> IO XML.Document
+parseTestXml input = do
+    case XML.parseText XML.def input of
+        Left err -> fail $ "Failed to parse XML: " ++ show err
+        Right doc -> return doc
 
 main :: IO ()
 main = hspec $ do
@@ -64,28 +71,28 @@ main = hspec $ do
 
     describe "XML Parsing" $ do
         it "should parse due diligence parameters correctly" $ do
-            doc <- XML.parseText XML.def sampleXml
+            doc <- parseTestXml sampleXml
             let ddMap = parseDueDiligence doc
             Map.lookup "ETOCONVPS_01" ddMap `shouldBe` Just "PS_Value"
 
         it "should parse product heights correctly" $ do
-            doc <- XML.parseText XML.def sampleXml
+            doc <- parseTestXml sampleXml
             let heights = parseProductHeights doc
             heights `shouldBe` ["5", "10"]
 
         it "should parse table type correctly" $ do
-            doc <- XML.parseText XML.def sampleXml
+            doc <- parseTestXml sampleXml
             let tabletype = parseTableType doc
             tabletype `shouldBe` "test_table"
 
         it "should parse order dictionary correctly" $ do
-            doc <- XML.parseText XML.def sampleXml
+            doc <- parseTestXml sampleXml
             let orderDict' = parseOrderDict doc defaultDDOptions
             Map.lookup "ETOSPID_01" orderDict' `shouldBe` Just "Order1"
 
     describe "XML Generation" $ do
         it "should generate mechanical XML correctly" $ do
-            doc <- XML.parseText XML.def sampleXml
+            doc <- parseTestXml sampleXml
             let xmlInterp = XmlInterp 
                     { xmlRoot = doc
                     , dueDiligence = parseDueDiligence doc
@@ -96,11 +103,12 @@ main = hspec $ do
             
             let mechDoc = createMechanicalXml xmlInterp
             let cursor = fromDocument mechDoc
-            cursor $// XML.element "ETOCONVPS_01" &/ XML.content `shouldBe` ["PS_Value"]
+            let content' = cursor $// element "ETOCONVPS_01" &/ content
+            content' `shouldBe` ["PS_Value"]
 
         it "should generate electrical XML correctly" $ do
             bracket setupTestDb close $ \conn -> do
-                doc <- XML.parseText XML.def sampleXml
+                doc <- parseTestXml sampleXml
                 let xmlInterp = XmlInterp 
                         { xmlRoot = doc
                         , dueDiligence = parseDueDiligence doc
@@ -111,32 +119,32 @@ main = hspec $ do
                 
                 elecDoc <- createElectricalXml xmlInterp conn
                 let cursor = fromDocument elecDoc
-                cursor $// XML.element "ConfigurationVariable" >=>
-                    XML.attributeIs "name" "ETOPRDH_01" &/
-                    XML.content `shouldBe` ["Low product height"]
+                let configVars = cursor $// element "ConfigurationVariable"
+                length configVars `shouldBe` 1
+                
+                let heightVar = head configVars
+                let name = attribute "name" heightVar
+                name `shouldBe` ["ETOPRDH_01"]
+                let content' = heightVar $/ content
+                content' `shouldBe` ["Low product height"]
 
     describe "Full Integration" $ do
         it "should process XML file end-to-end" $ do
             bracket setupTestDb close $ \conn -> do
-                -- Create temporary XML file
-                writeFile "test.xml" (T.unpack sampleXml)
+                writeFile "test.xml" (TL.unpack sampleXml)
                 
-                -- Parse and process
                 result <- parseXmlFile "test.xml"
                 case result of
                     Left err -> fail err
                     Right xmlInterp -> do
-                        -- Test mechanical XML generation
                         generateMechanicalXml xmlInterp "test.mech.xml"
                         mechExists <- doesFileExist "test.mech.xml"
                         mechExists `shouldBe` True
                         
-                        -- Test electrical XML generation
                         generateElectricalXml xmlInterp conn "test.elec.xml"
                         elecExists <- doesFileExist "test.elec.xml"
                         elecExists `shouldBe` True
                         
-                        -- Cleanup
                         removeFile "test.xml"
                         removeFile "test.mech.xml"
                         removeFile "test.elec.xml"

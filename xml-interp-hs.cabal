@@ -92,7 +92,8 @@ executable xml-interp-hs
 
 Test-Suite xml-interp-testsuite
   Type: exitcode-stdio-1.0
-  Main-Is: Test/Main.hs
+  Main-Is: Main.hs
   hs-source-dirs: app, test
+  other-modules: XmlParser, XmlTypes, Database, UI
   Build-Depends: base, QuickCheck, hspec, temporary, xml-conduit >= 1.2, sqlite-simple, filepath, text, glib >= 0.13, gtk >= 0.15, containers >= 0.6, directory, transformers,
   default-language: Haskell2010
