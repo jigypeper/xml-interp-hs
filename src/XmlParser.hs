@@ -8,12 +8,11 @@ import Control.Monad (forM)
 import Control.Exception (try, catch, SomeException)
 import System.FilePath ((</>))
 import Text.XML.Cursor
-import Data.Maybe (fromMaybe, catMaybes)
+import Data.Maybe (fromMaybe, catMaybes, listToMaybe)
 import qualified Database as DB
 import XmlTypes
 import Data.List (minimum)
 import Database.SQLite.Simple (Connection)
-import Data.Maybe (listToMaybe)
 
 
 getElementName :: Cursor -> T.Text
