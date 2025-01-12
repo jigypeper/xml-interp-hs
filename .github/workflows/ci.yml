@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest  # Use the latest Ubuntu runner
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4  # Checkout the repository
+
+    - name: Install ghcup (Haskell toolchain manager)
+      run: |
+        # Install ghcup
+        curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
+        source ~/.ghcup/env  # Set up ghcup for use
+
+    - name: Install GHC and Cabal
+      run: |
+        ghcup install ghc 9.4.8  # Install GHC 9.4.8 (or any specific version)
+        ghcup install cabal 3.10.3  # Install Cabal 3.10.3
+        ghcup set ghc 9.4.8  # Set GHC 9.4.8 as the default version
+        ghcup set cabal 3.10.3  # Set Cabal 3.10.3 as the default version
+        ghc --version  # Verify GHC installation
+        cabal --version  # Verify Cabal installation
+
+    - name: Cache Cabal dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cabal
+          ~/.ghc
+        key: ${{ runner.os }}-build-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
+        restore-keys: |
+          ${{ runner.os }}-build-
+
+    - name: Install dependencies
+      run: |
+        cabal update  # Update Cabal's package database
+        cabal build --only-dependencies --enable-tests --enable-benchmarks  # Install dependencies
+
+    - name: Build the project
+      run: cabal build --enable-tests --enable-benchmarks all  # Build the project and tests
+
+    - name: Run tests
+      run: cabal test --enable-tests --enable-benchmarks all  # Run all tests
