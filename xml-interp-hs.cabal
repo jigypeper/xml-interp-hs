@@ -54,6 +54,21 @@ extra-doc-files:    CHANGELOG.md
 common warnings
     ghc-options: -Wall
 
+library
+    hs-source-dirs: src
+    exposed-modules: Database, XmlParser, XmlTypes
+
+    build-depends:    base >= 4.7 && < 5,
+                      hspec,
+                      temporary, 
+                      xml-conduit >= 1.2,
+                      sqlite-simple,
+                      filepath,
+                      text,
+                      containers >= 0.6,
+                      directory,
+                      transformers,
+
 executable xml-interp-hs
     -- Import common warning flags.
     import:           warnings
@@ -72,8 +87,6 @@ executable xml-interp-hs
 
     -- Other library packages from which modules are imported.
     build-depends:    base >= 4.7 && < 5,
-                      hspec,
-                      temporary, 
                       xml-conduit >= 1.2,
                       sqlite-simple,
                       filepath,
@@ -85,7 +98,7 @@ executable xml-interp-hs
                       transformers,
 
     -- Directories containing source files.
-    hs-source-dirs:   app
+    hs-source-dirs:   app, src
 
     -- Base language which the package is written in.
     default-language: Haskell2010
@@ -93,7 +106,7 @@ executable xml-interp-hs
 Test-Suite xml-interp-testsuite
   Type: exitcode-stdio-1.0
   Main-Is: Main.hs
-  hs-source-dirs: app, test
-  other-modules: XmlParser, XmlTypes, Database, UI
+  hs-source-dirs: src, test
+  other-modules: XmlParser, XmlTypes, Database
   Build-Depends: base, QuickCheck, hspec, temporary, xml-conduit >= 1.2, sqlite-simple, filepath, text, glib >= 0.13, gtk >= 0.15, containers >= 0.6, directory, transformers,
   default-language: Haskell2010
