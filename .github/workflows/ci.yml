@@ -43,13 +43,13 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-build-
 
-    - name: Install dependencies
-      run: |
-        cabal update  # Update Cabal's package database
-        cabal build --only-dependencies --enable-tests --enable-benchmarks  # Install dependencies
+    # - name: Install dependencies
+    #   run: |
+    #     cabal update  # Update Cabal's package database
+    #     cabal build --only-dependencies --enable-tests --enable-benchmarks  # Install dependencies
 
-    - name: Build the project
-      run: cabal build --enable-tests --enable-benchmarks all  # Build the project and tests
+    # - name: Build the project
+    #   run: cabal build --enable-tests --enable-benchmarks all  # Build the project and tests
 
     - name: Run tests
       run: cabal test --enable-tests --enable-benchmarks all  # Run all tests

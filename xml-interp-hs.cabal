@@ -108,5 +108,5 @@ Test-Suite xml-interp-testsuite
   Main-Is: Main.hs
   hs-source-dirs: src, test
   other-modules: XmlParser, XmlTypes, Database
-  Build-Depends: base, QuickCheck, hspec, temporary, xml-conduit >= 1.2, sqlite-simple, filepath, text, glib >= 0.13, gtk >= 0.15, containers >= 0.6, directory, transformers,
+  Build-Depends: base, QuickCheck, hspec, temporary, xml-conduit >= 1.2, sqlite-simple, filepath, text, glib >= 0.13, containers >= 0.6, directory, transformers,
   default-language: Haskell2010
